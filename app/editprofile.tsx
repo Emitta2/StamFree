@@ -1,18 +1,22 @@
 import { auth, db } from '@/config/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
+import { H1, Label } from '@/components/ui/Typography';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 const profileAvatars = [
   { id: 'bear', image: require('@/assets/profilepictures/bear.png') },
@@ -25,14 +29,23 @@ const profileAvatars = [
   { id: 'tiger', image: require('@/assets/profilepictures/tiger.png') },
 ];
 
+// ... imports
+// ... imports
+
 export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // New state
 
   const [childName, setChildName] = useState('');
   const [childAge, setChildAge] = useState('');
   const [speechIssues, setSpeechIssues] = useState<string[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
-  const speechOptions = ['Prolongation', 'Blocks', 'Repetitions'];
+  const speechOptions = ['Prolongation', 'Blocks (silent pauses)', 'Repetitions'];
+
+  const selectedAvatarImage = useMemo(() => {
+    return profileAvatars.find(a => a.id === selectedAvatar)?.image;
+  }, [selectedAvatar]);
 
   // 🔹 Fetch existing data
   useEffect(() => {
@@ -61,7 +74,6 @@ export default function EditProfileScreen() {
     fetchProfile();
   }, []);
 
-  // 🔹 Save updated data
   const handleSave = async () => {
     if (!childName || !childAge) {
       Alert.alert('Error', 'Please fill all required fields');
@@ -87,157 +99,154 @@ export default function EditProfileScreen() {
   };
 
   if (loading) {
+    // ... loading view
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1a73e8" />
+      <View className="flex-1 justify-center items-center bg-white dark:bg-slate-900">
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Edit Profile</Text>
-
-      <Text style={styles.label}>Child Name</Text>
-      <TextInput
-        style={styles.input}
-        value={childName}
-        onChangeText={setChildName}
-      />
-
-      <Text style={styles.label}>Age</Text>
-      <TextInput
-        style={styles.input}
-        value={childAge}
-        onChangeText={setChildAge}
-        keyboardType="number-pad"
-      />
-
-      <Text style={styles.label}>Choose Avatar</Text>
-      <View style={styles.avatarRow}>
-        {profileAvatars.map((avatar) => (
-          <TouchableOpacity
-            key={avatar.id}
-            style={[
-                styles.avatarBox,
-                selectedAvatar === avatar.id && styles.avatarSelected,
-            ]}
-            onPress={() => setSelectedAvatar(avatar.id)}
+    <ScreenWrapper>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* Header */}
+        <View className="flex-row items-center justify-between mb-6 px-1">
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            className="w-11 h-11 items-center justify-center bg-white/60 border border-white rounded-full shadow-sm"
           >
-            <Image source={avatar.image} style={styles.avatarImage} />
-        </TouchableOpacity>
-       ))}
-      </View>
+            <Ionicons name="arrow-back" size={24} color="#166534" />
+          </TouchableOpacity>
+          <H1 className="text-slate-800 dark:text-white">Edit Profile</H1>
+          <View className="w-11" />
+        </View>
 
-      <Text style={styles.label}>Speech Challenges</Text>
-      {speechOptions.map((item) => (
-        <TouchableOpacity
-          key={item}
-          style={[
-            styles.chip,
-            speechIssues.includes(item) && styles.chipSelected,
-          ]}
-          onPress={() =>
-            setSpeechIssues((prev) =>
-              prev.includes(item)
-                ? prev.filter((i) => i !== item)
-                : [...prev, item]
-            )
-          }
-        >
-          <Text
-            style={{
-                color: speechIssues.includes(item) ? '#1a73e8' : '#111827',
-                fontWeight: '500',
-            }}
+        {/* Inputs */}
+        <Input
+          label="Child Name"
+          placeholder="Enter name"
+          value={childName}
+          onChangeText={setChildName}
+          iconName="account"
+        />
+
+        <Input
+          label="Age"
+          placeholder="Enter age"
+          value={childAge}
+          onChangeText={setChildAge}
+          keyboardType="number-pad"
+          iconName="calendar"
+        />
+
+        {/* Avatar Picker Card */}
+        <View className="mb-6">
+          <Label className="mb-3 text-slate-700 dark:text-slate-200">Avatar</Label>
+          <TouchableOpacity 
+            className="bg-white/90 dark:bg-slate-800/90 border-2 border-white/50 dark:border-slate-700/50 rounded-3xl p-6 items-center justify-center min-h-[120px] shadow-lg active:scale-[0.98]"
+            onPress={() => setShowAvatarModal(true)}
+            activeOpacity={0.9}
           >
-            {item}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            {selectedAvatar ? (
+              <View className="items-center">
+                <Image source={selectedAvatarImage} className="w-16 h-16 mb-3" resizeMode="contain" />
+                <Text className="text-teal-600 dark:text-teal-400 font-bold text-sm">Tap to Change</Text>
+              </View>
+            ) : (
+              <View className="items-center">
+                <Ionicons name="happy-outline" size={40} color="#0D9488" className="mb-3" />
+                <Text className="text-slate-500 dark:text-slate-400 font-semibold">Choose a friendly face</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveText}>Save Changes</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Speech Challenges */}
+        <View className="mb-8">
+          <Label className="mb-3 text-slate-700 dark:text-slate-200">Speech Challenges</Label>
+          <View className="flex-row flex-wrap gap-3">
+            {speechOptions.map((item) => {
+              const isSelected = speechIssues.includes(item);
+              return (
+                <TouchableOpacity
+                  key={item}
+                  className={`px-5 py-3 rounded-full border-2 shadow-sm active:scale-95 ${
+                    isSelected 
+                      ? 'bg-teal-500 border-teal-600' 
+                      : 'bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700'
+                  }`}
+                  onPress={() =>
+                    setSpeechIssues((prev) =>
+                      prev.includes(item)
+                        ? prev.filter((i) => i !== item)
+                        : [...prev, item]
+                    )
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    className={`font-bold text-sm ${
+                      isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <Button title="Save Changes" onPress={handleSave} />
+      </ScrollView>
+
+      {/* Avatar Selection Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showAvatarModal}
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-center items-center p-6">
+          <View className="bg-white dark:bg-slate-800 rounded-[32px] p-8 w-full max-w-sm items-center shadow-2xl border-2 border-white/50 dark:border-slate-700/50">
+            <H1 className="text-center mb-6 text-slate-800 dark:text-white text-2xl">Pick an Avatar</H1>
+            <View className="flex-row flex-wrap gap-4 justify-center mb-8">
+              {profileAvatars.map((avatar) => {
+                const isSelected = selectedAvatar === avatar.id;
+                return (
+                  <TouchableOpacity
+                    key={avatar.id}
+                    className={`w-20 h-20 rounded-2xl border-3 items-center justify-center shadow-md active:scale-95 ${
+                      isSelected 
+                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30' 
+                        : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700'
+                    }`}
+                    onPress={() => {
+                      setSelectedAvatar(avatar.id);
+                      setShowAvatarModal(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Image source={avatar.image} className="w-16 h-16" resizeMode="contain" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Button 
+              title="Close" 
+              variant="secondary" 
+              onPress={() => setShowAvatarModal(false)}
+              className="w-full" 
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal removed */}
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-  padding: 20,
-  backgroundColor: '#F8F9FA',
-  minHeight: '100%',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 20,
-  },
-  label: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#374151',
-  marginTop: 18,
-  },
-  input: {
-  borderWidth: 1,
-  borderColor: '#D1D5DB',
-  borderRadius: 10,
-  padding: 14,
-  marginTop: 6,
-  backgroundColor: '#fff',
-  color: '#111827',
-  fontSize: 16,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 10,
-  },
-  avatarBox: {
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 6,
-  },
-  avatarSelected: {
-    borderColor: '#1a73e8',
-  },
-  avatarImage: {
-    width: 50,
-    height: 50,
-  },
-  chip: {
-  padding: 10,
-  borderRadius: 20,
-  borderWidth: 1,
-  borderColor: '#ccc',
-  marginTop: 8,
-  marginRight: 8,   // 👈 add this
-  },
-  chipSelected: {
-    backgroundColor: '#DBEAFE',
-    borderColor: '#1a73e8',
-  },
-  saveButton: {
-    backgroundColor: '#1a73e8',
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 30,
-  },
-  saveText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-});
-
-

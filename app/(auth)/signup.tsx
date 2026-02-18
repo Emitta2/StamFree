@@ -1,4 +1,8 @@
 import { auth, db } from '@/config/firebaseConfig';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
+import { H1, H2, P, Label } from '@/components/ui/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Link, router } from 'expo-router';
@@ -6,14 +10,13 @@ import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } 
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert, Image, KeyboardAvoidingView,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -39,11 +42,15 @@ export default function CreateAccountScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [speechIssues, setSpeechIssues] = useState<Record<string, boolean>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
 
+  const selectedAvatarImage = useMemo(() => {
+    return profileAvatars.find(a => a.id === selectedAvatar)?.image;
+  }, [selectedAvatar]);
 
   const speechIssueOptions = useMemo(
     () => [
@@ -99,7 +106,7 @@ export default function CreateAccountScreen() {
   const handleCreateAccount = async () => {
     if (!validateForm()) return;
     if (!selectedAvatar) {
-      Alert.alert('Please select a profile avatar');
+      Alert.alert('Selection Required', 'Please choose a cute animal avatar for your child!');
       return;
     }
     setLoading(true);
@@ -184,124 +191,119 @@ export default function CreateAccountScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            Register your child and parent details
-          </Text>
+    <ScreenWrapper className="pt-0">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <View className="pt-12 pb-8 items-center">
+             <View 
+               className="bg-teal-500/10 rounded-full items-center justify-center mb-6"
+               style={{ width: 96, height: 96, borderRadius: 48 }}
+             >
+                <Ionicons name="person-add" size={48} color="#0D9488" />
+             </View>
+            <H1 className="text-center text-slate-800 dark:text-white text-4xl">Create Account</H1>
+            <P className="text-center mt-3 text-slate-600 dark:text-slate-300 text-base px-4">
+              Your journey to stammer-free speech starts here ✨
+            </P>
+          </View>
 
-          <View style={styles.form}>
-            <Text style={styles.sectionTitle}>Child Details</Text>
+          <View className="bg-white/90 dark:bg-slate-900/90 rounded-[40px] px-8 pt-8 pb-10 shadow-2xl mb-6 border-2 border-white/50 dark:border-slate-800/50">
+            {/* Child Details */}
+            <H2 className="text-teal-600 dark:text-teal-400 mb-4">Child Details</H2>
+            
+            <Input
+              label="Child's Name *"
+              placeholder="Enter child's full name"
+              value={childName}
+              onChangeText={setChildName}
+              editable={!loading}
+              iconName="account"
+            />
+            
+            <Input
+              label="Child's Age *"
+              placeholder="Enter child's age"
+              value={childAge}
+              onChangeText={setChildAge}
+              keyboardType="number-pad"
+              editable={!loading}
+              iconName="numeric"
+            />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Child&apos;s Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter child's full name"
-                value={childName}
-                onChangeText={setChildName}
-                editable={!loading}
-              />
+            <View className="mb-6">
+              <Label className="mb-3 text-slate-700 dark:text-slate-200">Child's Avatar *</Label>
+              <TouchableOpacity 
+                className="bg-white/90 dark:bg-slate-800/90 border-2 border-white/50 dark:border-slate-700/50 rounded-3xl p-6 items-center justify-center min-h-[140px] shadow-lg active:scale-[0.98]"
+                onPress={() => setShowAvatarModal(true)}
+                disabled={loading}
+                activeOpacity={0.9}
+              >
+                {selectedAvatar ? (
+                  <View className="items-center gap-2">
+                    <Image source={selectedAvatarImage} className="w-20 h-20" resizeMode="contain" />
+                    <Text className="text-teal-600 dark:text-teal-400 font-bold text-sm">Tap to Change</Text>
+                  </View>
+                ) : (
+                  <View className="items-center gap-2">
+                    <Ionicons name="happy-outline" size={40} color="#0D9488" />
+                    <Text className="text-teal-600 dark:text-teal-400 font-semibold text-base text-center">Choose a friendly face</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Child&apos;s Age *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter child's age"
-                value={childAge}
-                onChangeText={setChildAge}
-                keyboardType="number-pad"
-                editable={!loading}
-              />
-            </View>
+            {/* Parent Details */}
+            <H2 className="text-teal-600 dark:text-teal-400 mb-4 mt-2">Parent Details</H2>
 
-            <Text style={styles.sectionTitle}>Choose a Profile Avatar</Text>
-            <Text style={styles.helperText}>
-              Select a cute animal icon for your child.
-            </Text>
+            <Input
+              label="Parent's Name *"
+              placeholder="Enter parent's full name"
+              value={parentName}
+              onChangeText={setParentName}
+              editable={!loading}
+              iconName="account-tie"
+            />
 
-            <View style={styles.avatarGrid}>
-              {profileAvatars.map((avatar) => {
-                const isSelected = selectedAvatar === avatar.id;
+            <Input
+              label="Parent's Phone Number *"
+              placeholder="Enter 10-digit phone number"
+              value={parentPhone}
+              onChangeText={setParentPhone}
+              keyboardType="phone-pad"
+              maxLength={10}
+              editable={!loading}
+              iconName="phone"
+            />
 
-                return (
-                  <TouchableOpacity
-                    key={avatar.id}
-                    style={[
-                      styles.avatarItem,
-                      isSelected && styles.avatarSelected,
-                    ]}
-                    onPress={() => setSelectedAvatar(avatar.id)}
-                    disabled={loading}
-                  >
-                    <Image source={avatar.image} style={styles.avatarImage} />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={styles.sectionTitle}>Parent Details</Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Parent&apos;s Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter parent's full name"
-                value={parentName}
-                onChangeText={setParentName}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Parent&apos;s Phone Number *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter 10-digit phone number"
-                value={parentPhone}
-                onChangeText={setParentPhone}
-                keyboardType="phone-pad"
-                maxLength={10}
-                editable={!loading}
-              />
-            </View>
-
-            <Text style={styles.sectionTitle}>
-              Speech Challenges (optional)
-            </Text>
-            <Text style={styles.helperText}>
-              Select any identified patterns to tailor practice.
-            </Text>
-            <View style={styles.chipGrid}>
+            <H2 className="text-teal-600 dark:text-teal-400 mb-2 mt-4">Speech Challenges</H2>
+            <P className="text-slate-500 dark:text-slate-400 mb-4 text-sm">Select any identified patterns to tailor practice (Optional).</P>
+            
+            <View className="flex-row flex-wrap gap-3 mb-6">
               {speechIssueOptions.map((issue) => {
                 const checked = !!speechIssues[issue];
                 return (
                   <TouchableOpacity
                     key={issue}
-                    style={[styles.chip, checked && styles.chipChecked]}
+                    className={`flex-row items-center gap-2 border-2 rounded-full px-5 py-3 shadow-sm active:scale-95 ${
+                      checked 
+                        ? 'border-teal-600 bg-teal-500' 
+                        : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-800/90'
+                    }`}
                     onPress={() => toggleSpeechIssue(issue)}
                     disabled={loading}
+                    activeOpacity={0.8}
                   >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        checked && styles.checkboxChecked,
-                      ]}
-                    >
-                      {checked && <Text style={styles.checkboxMark}>✓</Text>}
-                    </View>
-                    <Text
-                      style={[
-                        styles.chipText,
-                        checked && styles.chipTextChecked,
-                      ]}
-                    >
+                     <View className={`w-5 h-5 rounded border-2 items-center justify-center ${
+                         checked ? 'bg-white border-white' : 'bg-white border-slate-300'
+                     }`}>
+                        {checked && <Ionicons name="checkmark" size={14} color="#0D9488" />}
+                     </View>
+                    <Text className={`text-sm font-bold ${
+                        checked ? 'text-white' : 'text-slate-600 dark:text-slate-300'
+                    }`}>
                       {issue}
                     </Text>
                   </TouchableOpacity>
@@ -309,360 +311,132 @@ export default function CreateAccountScreen() {
               })}
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter email address"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-              />
-            </View>
+            {/* Account Info */}
+            <H2 className="text-teal-600 dark:text-teal-400 mb-4 mt-2">Account Info</H2>
+            
+            <Input
+              label="Email Address *"
+              placeholder="Enter email address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!loading}
+              iconName="email"
+            />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password *</Text>
+            <Input
+              label="Password *"
+              placeholder="Create password (min 6 chars)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!loading}
+              iconName="lock"
+            />
 
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Create password (min 6 characters)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye' : 'eye-off'}
-                    size={22}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Input
+              label="Confirm Password *"
+              placeholder="Re-enter password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              editable={!loading}
+              iconName="lock-check"
+            />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password *</Text>
-
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Re-enter password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                  editable={!loading}
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                 >
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye' : 'eye-off'}
-                    size={22}
-                    color="#666"
-                  />
-                 </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Button
+              title="Create Account"
               onPress={handleCreateAccount}
+              loading={loading}
               disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
+              className="mt-6 mb-4"
+            />
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+            <View className="flex-row justify-center pb-8">
+              <Text className="text-slate-500 dark:text-slate-400">Already have an account? </Text>
               <Link href="/(auth)/login" asChild>
                 <TouchableOpacity disabled={loading}>
-                  <Text style={styles.link}>Login</Text>
+                  <Text className="text-teal-600 dark:text-teal-400 font-bold">Login</Text>
                 </TouchableOpacity>
               </Link>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
+      {/* Avatar Selection Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showAvatarModal}
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-center items-center p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-[32px] p-8 items-center w-full max-w-sm shadow-2xl border-2 border-white/50 dark:border-slate-700/50">
+            <H2 className="text-slate-800 dark:text-white text-2xl mb-2">Pick an Avatar</H2>
+            <P className="text-center mb-6 text-slate-500 dark:text-slate-400">Choose a friendly face for your adventure!</P>
+            
+            <View className="flex-row flex-wrap gap-4 justify-center mb-6">
+              {profileAvatars.map((avatar) => {
+                const isSelected = selectedAvatar === avatar.id;
+                return (
+                  <TouchableOpacity
+                    key={avatar.id}
+                    className={`w-20 h-20 rounded-2xl border-3 items-center justify-center shadow-md active:scale-95 ${
+                        isSelected 
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30' 
+                          : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700'
+                    }`}
+                    onPress={() => {
+                      setSelectedAvatar(avatar.id);
+                      setShowAvatarModal(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Image source={avatar.image} className="w-16 h-16" resizeMode="contain" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Button 
+                title="Cancel" 
+                variant="ghost" 
+                onPress={() => setShowAvatarModal(false)} 
+                className="w-full"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={showSuccessModal}
         onRequestClose={handleSuccessContinue}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconContainer}>
-              <Text style={styles.modalIcon}>🎉</Text>
+        <View className="flex-1 bg-black/60 justify-center items-center p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-3xl p-8 items-center w-full max-w-sm shadow-xl">
+            <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
+               <Text className="text-3xl">🎉</Text>
             </View>
-            <Text style={styles.modalTitle}>Success!</Text>
-            <Text style={styles.modalMessage}>
-              Your account has been created successfully. Please verify your
-              email address to continue.
-            </Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={handleSuccessContinue}
-            >
-              <Text style={styles.modalButtonText}>Verify Email</Text>
-            </TouchableOpacity>
+            <H2 className="text-center mb-2">Success!</H2>
+            <P className="text-center mb-6 text-slate-500">
+              Your account has been created successfully. Welcome to StamFree!
+            </P>
+            <Button
+              title="Go to Dashboard"
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.replace("/(tabs)");
+              }}
+              className="w-full"
+            />
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-  },
-  content: {
-    padding: 24,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1a73e8",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  form: {
-    width: "100%",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    color: "#4b5563",
-    marginBottom: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#f9f9f9",
-  },
-  passwordContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: '#ddd',
-  borderRadius: 8,
-  backgroundColor: '#f9f9f9',
-  },
-
-  passwordInput: {
-  flex: 1,
-  padding: 12,
-  fontSize: 16,
-  },
-
-  eyeIcon: {
-  paddingHorizontal: 12,
-  },
-
-  chipGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#e0e7ff",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: "#f8f9ff",
-  },
-  chipChecked: {
-    borderColor: "#1a73e8",
-    backgroundColor: "#e8f0fe",
-  },
-  chipText: {
-    fontSize: 14,
-    color: "#2c3e50",
-    fontWeight: "700",
-  },
-  chipTextChecked: {
-    color: "#1a73e8",
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#cbd5e1",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    shadowColor: "#1a73e8",
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  checkboxChecked: {
-    borderColor: "#1a73e8",
-    backgroundColor: "#1a73e8",
-  },
-  checkboxMark: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  button: {
-    backgroundColor: "#1a73e8",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  footerText: {
-    color: "#666",
-    fontSize: 14,
-  },
-  link: {
-    color: "#1a73e8",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 30,
-    alignItems: "center",
-    width: "100%",
-    maxWidth: 340,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modalIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E8F0FE",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalIcon: {
-    fontSize: 30,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1a73e8",
-    marginBottom: 10,
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  modalButton: {
-    backgroundColor: "#1a73e8",
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 25,
-    width: "100%",
-  },
-  modalButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 16,
-  },
-  avatarItem: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  avatarSelected: {
-    borderColor: '#1a73e8',
-    backgroundColor: '#e8f0fe',
-  },
-  avatarImage: {
-    width: 48,
-    height: 48,
-    resizeMode: 'contain',
-  },
-});
