@@ -6,7 +6,7 @@ import { H1, H2, P, Label } from '@/components/ui/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Link, router } from 'expo-router';
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useMemo, useState } from 'react';
 import {
@@ -41,7 +41,6 @@ export default function CreateAccountScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [speechIssues, setSpeechIssues] = useState<Record<string, boolean>>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -103,73 +102,90 @@ export default function CreateAccountScreen() {
     return true;
   };
 
+  // Helper to add timeout to any promise
+  const withTimeout = <T,>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+    ]);
+  };
+
   const handleCreateAccount = async () => {
     if (!validateForm()) return;
     if (!selectedAvatar) {
       Alert.alert('Selection Required', 'Please choose a cute animal avatar for your child!');
       return;
     }
+    
+    if (!auth) {
+      Alert.alert("Error", "Firebase not initialized. Please restart the app.");
+      return;
+    }
+    
     setLoading(true);
+    
+    // Emergency timeout - force stop loading after 20 seconds no matter what
+    const emergencyTimeout = setTimeout(() => {
+      setLoading(false);
+      Alert.alert("Error", "Operation took too long. Please check your internet connection and try again.");
+    }, 20000);
+    
     try {
-      // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
+      // Create user in Firebase Auth (15s timeout)
+      const userCredential = await withTimeout(
+        createUserWithEmailAndPassword(auth, email, password),
+        15000,
+        "Account creation timed out. Please check your connection."
       );
       const user = userCredential.user;
 
-      // Update profile (display name)
-      await updateProfile(user, { displayName: childName });
+      // Update profile (non-blocking - don't wait for it)
+      updateProfile(user, { displayName: childName }).catch(() => {});
 
-      // Store additional user data in Firestore
-      try {
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Firestore timeout")), 5000)
-        );
+      // Store additional user data in Firestore (non-blocking)
+      const selectedSpeechIssues = Object.entries(speechIssues)
+        .filter(([, checked]) => checked)
+        .map(([issue]) => issue);
 
-        const selectedSpeechIssues = Object.entries(speechIssues)
-          .filter(([, checked]) => checked)
-          .map(([issue]) => issue);
+      setDoc(doc(db, "users", user.uid), {
+        avatarId: selectedAvatar,
+        childName,
+        childAge,
+        parentName,
+        parentPhone,
+        email,
+        speechIssues: selectedSpeechIssues,
+        createdAt: new Date().toISOString(),
+        gameProgress: {
+          turtle: { tier: 1, level: "word" },
+          snake: { tier: 1, level: "word" },
+          balloon: { tier: 1, level: "word" },
+          onetap: { tier: 1, level: "word" },
+        },
+      }).catch(() => {});
 
-        await Promise.race([
-          setDoc(doc(db, "users", user.uid), {
-            avatarId: selectedAvatar,
-            childName,
-            childAge,
-            parentName,
-            parentPhone,
-            email,
-            speechIssues: selectedSpeechIssues,
-            createdAt: new Date().toISOString(),
-            gameProgress: {
-              turtle: { tier: 1, level: "word" },
-              snake: { tier: 1, level: "word" },
-              balloon: { tier: 1, level: "word" },
-              onetap: { tier: 1, level: "word" },
-            },
-          }),
-          timeoutPromise,
-        ]);
-      } catch (firestoreError) {
-        console.warn("Firestore save failed or timed out:", firestoreError);
-      }
+      // Store auth state locally (non-blocking)
+      AsyncStorage.setItem("authUser", JSON.stringify({ email, uid: user.uid })).catch(() => {});
 
-      // Store auth state locally (legacy/backup)
-      await AsyncStorage.setItem(
-        "authUser",
-        JSON.stringify({ email, uid: user.uid })
+      // Send verification email (fire and forget)
+      sendEmailVerification(user).catch(() => {});
+
+      // Sign out the user immediately - they must verify email and login manually  
+      const signOutPromise = signOut(auth);
+      const signOutTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("SignOut timeout")), 3000)
       );
+      await Promise.race([signOutPromise, signOutTimeout]).catch(() => {});
 
-      // Send email verification
-      try {
-        await sendEmailVerification(user);
-        console.log("Verification email sent");
-      } catch (verifyError) {
-        console.warn("Failed to send verification email:", verifyError);
-      }
+      // Clear any stored auth state
+      AsyncStorage.removeItem("authUser").catch(() => {});
 
-      setShowSuccessModal(true);
+      clearTimeout(emergencyTimeout);
+      setLoading(false);
+      
+      // Navigate to email verification screen
+      router.replace("/(auth)/email-verification");
+      return;
     } catch (error: any) {
       let errorMessage = "Failed to create account. Please try again.";
       if (error.code === "auth/email-already-in-use") {
@@ -178,16 +194,14 @@ export default function CreateAccountScreen() {
         errorMessage = "Invalid email address.";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Password is too weak.";
+      } else if (error.message?.includes("timed out")) {
+        errorMessage = error.message;
       }
       Alert.alert("Error", errorMessage);
     } finally {
+      clearTimeout(emergencyTimeout);
       setLoading(false);
     }
-  };
-
-  const handleSuccessContinue = () => {
-    setShowSuccessModal(false);
-    router.replace("/(auth)/email-verification");
   };
 
   return (
@@ -405,34 +419,6 @@ export default function CreateAccountScreen() {
                 variant="ghost" 
                 onPress={() => setShowAvatarModal(false)} 
                 className="w-full"
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Success Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showSuccessModal}
-        onRequestClose={handleSuccessContinue}
-      >
-        <View className="flex-1 bg-black/60 justify-center items-center p-5">
-          <View className="bg-white dark:bg-slate-800 rounded-3xl p-8 items-center w-full max-w-sm shadow-xl">
-            <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
-               <Text className="text-3xl">🎉</Text>
-            </View>
-            <H2 className="text-center mb-2">Success!</H2>
-            <P className="text-center mb-6 text-slate-500">
-              Your account has been created successfully. Welcome to StamFree!
-            </P>
-            <Button
-              title="Go to Dashboard"
-              onPress={() => {
-                setShowSuccessModal(false);
-                router.replace("/(tabs)");
-              }}
-              className="w-full"
             />
           </View>
         </View>
