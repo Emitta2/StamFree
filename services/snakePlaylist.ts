@@ -1,5 +1,6 @@
 import { db } from '@/config/firebaseConfig';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { savePracticeSession } from '@/services/firestore';
 
 // --- Types ---
 
@@ -112,7 +113,8 @@ export async function getNextSnakeSession(userId: string) {
 export async function recordSnakeSessionResult(
   userId: string, 
   phonemeId: string, 
-  isSuccess: boolean
+  isSuccess: boolean,
+  stars: number = 1,
 ): Promise<{ leveledUp: boolean, nextPhoneme?: string }> {
   const playlistRef = doc(db, `users/${userId}/snake_progress/playlist`);
   const snap = await getDoc(playlistRef);
@@ -164,13 +166,24 @@ export async function recordSnakeSessionResult(
     }
   }
 
-  // Save changes
+  // Save changes to playlist
   await updateDoc(playlistRef, {
     activePhonemes: playlist.activePhonemes,
     masteredPhonemes: playlist.masteredPhonemes,
     lockedPhonemes: playlist.lockedPhonemes,
     [`phonemeStats.${phonemeId}`]: stats
   });
+
+  // Write to practice_sessions so progress screen graph can read it
+  try {
+    await savePracticeSession(userId, 'snake', {
+      phoneme: phonemeId,
+      isSuccess,
+      stars,
+    });
+  } catch (e) {
+    console.error('[snakePlaylist] Failed to write practice_session:', e);
+  }
 
   return { leveledUp, nextPhoneme };
 }

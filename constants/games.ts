@@ -1,13 +1,17 @@
+import { type ImageSourcePropType } from 'react-native';
+import LottieView, { type LottieViewProps } from 'lottie-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 export interface GameConfig {
   id: string;
   title: string;
   description: string;
-  iconSource?: any; // require() path
-  iconName?: string; // MaterialCommunityIcons name
-  lottieSource?: any; // Lottie JSON source
+  iconSource?: ImageSourcePropType;
+  iconName?: keyof typeof MaterialCommunityIcons.glyphMap;
+  lottieSource?: LottieViewProps['source'];
   gradientColors: [string, string, ...string[]];
   darkGradientColors: [string, string, ...string[]];
-  route: string;
+  route: string & {};
   type: 'prolongation' | 'blocking' | 'repetition' | 'common';
 }
 
@@ -39,7 +43,7 @@ export const GAMES: GameConfig[] = [
     title: 'Rhythm Tap',
     description: 'Tap out syllables & find your rhythm',
     iconName: 'music-note',
-    lottieSource: require('@/assets/lottie/tapping.json'),
+    lottieSource: require('@/assets/lottie/bubble.json'),
     gradientColors: ['#ec4899', '#be185d'], // Pink-500 -> Pink-700
     darkGradientColors: ['#9d174d', '#831843'], // Pink-800 -> Pink-900
     route: '/exercises/tapping-game',
@@ -54,6 +58,6 @@ export const GAMES: GameConfig[] = [
     gradientColors: ['#38bdf8', '#0369a1'], // Sky-400 -> Sky-700
     darkGradientColors: ['#075985', '#0c4a6e'], // Sky-800 -> Sky-900
     route: '/exercises/balloon-game',
-    type: 'common',
+    type: 'blocking',
   }
 ];
